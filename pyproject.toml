@@ -1,0 +1,29 @@
+[project]
+name = "sb3-trial"
+version = "0.1.0"
+description = "Eight puzzle solved with RL using Stable Baselines 3"
+authors = [
+    { name = "Brandon Corfman", email = "bcorfman@fastmail.fm" }
+]
+dependencies = [
+    "stable-baselines3>=2.3.0",
+]
+readme = "README.md"
+requires-python = ">= 3.9"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ipython>=8.23.0",
+    "pytest>=8.1.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sb3_trial"]
