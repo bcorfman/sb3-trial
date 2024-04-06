@@ -6,7 +6,9 @@ authors = [
     { name = "Brandon Corfman", email = "bcorfman@fastmail.fm" }
 ]
 dependencies = [
+    "opencv-python>=4.9.0.80",
     "stable-baselines3>=2.3.0",
+    "gymnasium[classic-control]>=0.29.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"
