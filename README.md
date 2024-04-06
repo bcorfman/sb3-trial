@@ -3,6 +3,8 @@
 Stable Baselines 3 Cartpole example configured with Rye as dependency manager.
 Tested with Ubuntu on WSL2.
 
+<img src="cartpole.png">
+
 ## Prerequisites
 * At a type `make devinstall` to set up the project-level dependencies in development mode, or just `make install` to set up the game as runnable only.
 
