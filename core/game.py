@@ -31,6 +31,9 @@ class NPuzzle:
         }
 
     def __repr__(self):
+        return f"Puzzle({self.n - 1}, {self.field})"
+
+    def __str__(self):
         out = ""
         for row in range(self.side):
             out += f"{self.field[row * self.side] if self.field[row * self.side] > 0 else " "} "
@@ -64,10 +67,10 @@ class NPuzzle:
         )
 
     def is_goal_state(self):
-        return self.state == range(self.n)
+        return self.field == list(range(self.n))
 
     def generate_random_puzzle(self, n: int = 8) -> List[int]:
-        return random.shuffle(range(n + 1))
+        return random.shuffle(list(range(n + 1)))
 
     @property
     def State(self):

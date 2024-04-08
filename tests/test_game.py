@@ -24,4 +24,14 @@ def test_create_puzzle_with_init_state():
 
 def test_repr():
     puzzle = NPuzzle(8, [1, 4, 6, 7, 5, 3, 0, 2, 8])
-    assert repr(puzzle) == "1 4 6\n7 5 3\n  2 8\n"
+    assert repr(puzzle) == "Puzzle(8, [1, 4, 6, 7, 5, 3, 0, 2, 8])"
+
+
+def test_str():
+    puzzle = NPuzzle(8, [1, 4, 6, 7, 5, 3, 0, 2, 8])
+    assert str(puzzle) == "1 4 6\n7 5 3\n  2 8\n"
+
+
+def test_goal_state():
+    puzzle = NPuzzle(8, list(range(9)))
+    assert puzzle.is_goal_state()
