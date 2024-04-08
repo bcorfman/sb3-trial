@@ -4,7 +4,6 @@ from typing import List
 
 import gymnasium as gym
 import pygame
-from gymnasium.error import DependencyNotInstalled
 from gymnasium.spaces import Discrete
 
 
@@ -18,11 +17,8 @@ class Actions:
 class NPuzzle:
     def __init__(self, n: int, init_state=None):
         self.n = n + 1
-        side = math.sqrt(n + 1)
-        assert side * side == n + 1
+        side = int(math.sqrt(n + 1))
         self.side = side
-        if init_state:
-            assert list(sorted(init_state)) == range(self.n)
         self.field = (
             self.generate_random_puzzle(n) if init_state is None else init_state
         )
@@ -38,7 +34,7 @@ class NPuzzle:
         out = ""
         for row in range(self.side):
             out += f"{self.field[row * self.side] if self.field[row * self.side] > 0 else " "} "
-            out += f"{self.field[row * self.side + 1 if self.field[row * self.side+1] > 0 else " "]} "
+            out += f"{self.field[row * self.side + 1] if self.field[row * self.side+1] > 0 else " "} "
             out += f"{self.field[row * self.side + 2] if self.field[row * self.side+ 2] > 0 else " "}\n"
         return out
 
@@ -46,16 +42,26 @@ class NPuzzle:
         direction = self.directions[action]
         move_allowed = self.is_in_bounds(direction)
         if move_allowed:
-            new_pos = self.space + self.direction
+            new_pos = self.space + direction
             self.field[self.space], self.field[new_pos] = (
                 self.field[new_pos],
                 self.field[self.space],
             )
+            self.space = new_pos
         return move_allowed
 
     def is_in_bounds(self, direction):
-        pos = direction + self.space
-        return pos >= 0 and pos < len(self.field)
+        pos = self.space + direction
+        pos_row = pos // self.side
+        space_row = self.space // self.side
+        return (
+            pos >= 0
+            and pos < len(self.field)
+            and (
+                (pos_row == space_row and abs(direction) == 1)
+                or (pos_row != space_row and abs(direction) == self.side)
+            )
+        )
 
     def is_goal_state(self):
         return self.state == range(self.n)

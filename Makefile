@@ -12,7 +12,7 @@ devinstall:
 	$(HOME)/.rye/shims/rye sync --no-lock
 
 test:
-	$(HOME)/.rye/shims/rye run pytest
+	$(HOME)/.rye/shims/rye run pytest -vv
 
 run: 
 	$(HOME)/.rye/shims/rye run python main.py
