@@ -10,15 +10,31 @@
 -e file:.
 asttokens==2.4.1
     # via stack-data
+attrs==23.2.0
+    # via jsonschema
+    # via referencing
+certifi==2024.2.2
+    # via requests
+    # via sentry-sdk
+charset-normalizer==3.3.2
+    # via requests
 cloudpickle==3.0.0
     # via gymnasium
     # via stable-baselines3
+comet-ml==3.40.0
+    # via sb3-trial
+configobj==5.0.8
+    # via everett
 contourpy==1.2.1
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
 decorator==5.1.1
     # via ipython
+dulwich==0.21.7
+    # via comet-ml
+everett==3.1.0
+    # via comet-ml
 executing==2.0.1
     # via stack-data
 farama-notifications==0.0.4
@@ -32,6 +48,8 @@ fsspec==2024.3.1
 gymnasium==0.29.1
     # via sb3-trial
     # via stable-baselines3
+idna==3.7
+    # via requests
 iniconfig==2.0.0
     # via pytest
 ipython==8.23.0
@@ -39,14 +57,22 @@ jedi==0.19.1
     # via ipython
 jinja2==3.1.3
     # via torch
+jsonschema==4.21.1
+    # via comet-ml
+jsonschema-specifications==2023.12.1
+    # via jsonschema
 kiwisolver==1.4.5
     # via matplotlib
+markdown-it-py==3.0.0
+    # via rich
 markupsafe==2.1.5
     # via jinja2
 matplotlib==3.8.4
     # via stable-baselines3
 matplotlib-inline==0.1.6
     # via ipython
+mdurl==0.1.2
+    # via markdown-it-py
 mpmath==1.3.0
     # via sympy
 networkx==3.2.1
@@ -103,6 +129,8 @@ pluggy==1.4.0
     # via pytest
 prompt-toolkit==3.0.43
     # via ipython
+psutil==5.9.8
+    # via comet-ml
 ptyprocess==0.7.0
     # via pexpect
 pure-eval==0.2.2
@@ -111,16 +139,43 @@ pygame==2.5.2
     # via gymnasium
 pygments==2.17.2
     # via ipython
+    # via rich
 pyparsing==3.1.2
     # via matplotlib
 pytest==8.1.1
+python-box==6.1.0
+    # via comet-ml
 python-dateutil==2.9.0.post0
     # via matplotlib
     # via pandas
 pytz==2024.1
     # via pandas
+referencing==0.34.0
+    # via jsonschema
+    # via jsonschema-specifications
+requests==2.31.0
+    # via comet-ml
+    # via requests-toolbelt
+requests-toolbelt==1.0.0
+    # via comet-ml
+rich==13.7.1
+    # via comet-ml
+    # via sb3-trial
+rpds-py==0.18.0
+    # via jsonschema
+    # via referencing
+semantic-version==2.10.0
+    # via comet-ml
+sentry-sdk==1.45.0
+    # via comet-ml
+setuptools==69.5.1
+    # via comet-ml
+simplejson==3.19.2
+    # via comet-ml
 six==1.16.0
     # via asttokens
+    # via comet-ml
+    # via configobj
     # via python-dateutil
 stable-baselines3==2.3.0
     # via sb3-trial
@@ -130,6 +185,8 @@ sympy==1.12
     # via torch
 torch==2.2.2
     # via stable-baselines3
+tqdm==4.66.2
+    # via sb3-trial
 traitlets==5.14.2
     # via ipython
     # via matplotlib-inline
@@ -138,5 +195,16 @@ typing-extensions==4.11.0
     # via torch
 tzdata==2024.1
     # via pandas
+urllib3==2.2.1
+    # via comet-ml
+    # via dulwich
+    # via requests
+    # via sentry-sdk
 wcwidth==0.2.13
     # via prompt-toolkit
+websocket-client==1.3.3
+    # via comet-ml
+wrapt==1.16.0
+    # via comet-ml
+wurlitzer==3.0.3
+    # via comet-ml

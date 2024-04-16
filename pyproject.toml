@@ -9,6 +9,9 @@ dependencies = [
     "opencv-python>=4.9.0.80",
     "stable-baselines3>=2.3.0",
     "gymnasium[classic-control]>=0.29.1",
+    "comet-ml>=3.40.0",
+    "tqdm>=4.66.2",
+    "rich>=13.7.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"

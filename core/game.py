@@ -38,6 +38,7 @@ class NPuzzle:
             Actions.SPACE_RIGHT: 1,
             Actions.SPACE_UP: -side,
         }
+        self.reverse_dir = None
 
     def __repr__(self):
         return f"Puzzle({self.n - 1}, {self.field})"
@@ -52,8 +53,9 @@ class NPuzzle:
 
     def move(self, action):
         direction = self.directions[action]
-        move_allowed = self.is_in_bounds(direction)
+        move_allowed = self.is_in_bounds(direction) and self.reverse_dir != direction
         if move_allowed:
+            self.reverse_dir = -direction
             new_pos = self.space + direction
             self.field[self.space], self.field[new_pos] = (
                 self.field[new_pos],
@@ -87,20 +89,17 @@ class NPuzzle:
     def State(self):
         state = []
         for row in range(self.side):
-            state.append(
-                [
-                    self.field[row * self.side],
-                    self.field[row * self.side + 1],
-                    self.field[row * self.side + 2],
-                ]
-            )
+            items = []
+            for col in range(self.side):
+                items.append(self.field[row * self.side + col])
+            state.append(items)
         return state
 
 
-class EightPuzzleEnv(gym.Env):
+class NPuzzleEnv(gym.Env):
     metadata = {"render_modes": ["human", "terminal"], "render_fps": 4}
 
-    def __init__(self, n=8, render_mode=None):
+    def __init__(self, n=3, render_mode=None):
         self.n = n
         assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
@@ -130,28 +129,45 @@ class EightPuzzleEnv(gym.Env):
     def step(self, action):
         if self.render_mode == "human":
             self._render_frame()
-        self.puzzle.move(action)
-        self.done = self.puzzle.is_goal_state()
+        can_move = self.puzzle.move(action)
+        if not can_move:
+            self.done = False
+        else:
+            self.done = self.puzzle.is_goal_state()
         self.reward = self._get_reward()
-        if self.render_mode == "terminal":
-            print(self._get_obs())
-
         observation = self._get_obs()
+        if self.render_mode == "terminal":
+            print(observation)
+        return (
+            observation,
+            self.reward,
+            self.done,
+            not can_move,
+            {"Step Reward": self.reward},
+        )
 
-        return observation, self.reward, self.done, False, {"Step Reward": self.reward}
-
-    def render(self, render_mode=None):
-        self.render_mode = render_mode
-        if self.window is None and self.render_mode == "human":
-            pygame.init()
-            pygame.display.init()
-            self.tile_font = self._get_font("freeansbold.ttf", self.window_size)
-            self.clock = pygame.time.Clock()
-            self.screen_width = self.screen_height = self.puzzle.side * 30
-            self.screen = pygame.display.set_mode((self.window_size, self.window_size))
-            self.screen.fill((0, 0, 0))
-            pygame.display.set_caption("Eight Puzzle")
-        self._render_frame()
+    def render(self):
+        if self.render_mode is None:
+            assert self.spec is not None
+            gym.logger.warn(
+                "You are calling render method without specifying any render mode. "
+                "You can specify the render_mode at initialization, "
+                f'e.g. gym.make("{self.spec.id}", render_mode="terminal")'
+            )
+        else:
+            if self.window is None and self.render_mode == "human":
+                pygame.init()
+                pygame.display.init()
+                self.tile_font = self._get_font("freeansbold.ttf", self.window_size)
+                self.clock = pygame.time.Clock()
+                self.screen_width = self.screen_height = self.puzzle.side * 30
+                self.screen = pygame.display.set_mode(
+                    (self.window_size, self.window_size)
+                )
+                self.screen.fill((0, 0, 0))
+                pygame.display.set_caption("Eight Puzzle")
+            if self.render_mode == "terminal":
+                self._render_frame()
 
     def close(self):
         pygame.display.quit()
@@ -184,14 +200,12 @@ class EightPuzzleEnv(gym.Env):
             pygame.event.pump()
             pygame.display.update()
             self.clock.tick(self.metadata["render_fps"])
-        elif self.render_mode == "terminal":
-            return self._get_obs()
 
     def _get_obs(self):
         return np.array(self.puzzle.State, dtype=np.int8)
 
     def _get_reward(self):
-        return 1 if self.puzzle.is_goal_state() else 0
+        return 100 if self.done else -1
 
     def _get_font(self, path, size):
         project_dir = os.path.dirname(os.path.os.path.dirname(__file__))
