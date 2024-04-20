@@ -1,7 +1,7 @@
 import math
 import os
-import random
-from typing import List
+from dataclasses import dataclass
+from enum import Enum
 
 import gymnasium as gym
 import numpy as np
@@ -14,7 +14,46 @@ WHITE = (255, 255, 255)
 LINE_WIDTH = 3
 
 
-class Actions:
+def _manhattan_distance(row1, col1, row2, col2):
+    return abs(row1 - row2) + abs(col1 - col2)
+
+
+@dataclass(eq=False)
+class Coord:
+    row: int
+    col: int
+
+    def __eq__(self, other):
+        if isinstance(other, Coord):
+            return self.row == other.row and self.col == other.col
+        return self.row == other[0] and self.col == other[1]
+
+    def __add__(self, other):
+        if isinstance(other, Coord):
+            return Coord(self.row + other.row, self.col + other.col)
+        else:
+            return Coord(self.row + other[0], self.col + other[1])
+
+    def __radd__(self, other):
+        if isinstance(other, Coord):
+            return self.__add__(other)
+        else:
+            return Coord(self.row + other[0], self.col + other[1])
+
+    def __hash__(self):
+        return hash((self.row, self.col))
+
+    def as_tuple(self):
+        return self.row, self.col
+
+    @classmethod
+    def from_tuple(cls, t):
+        loc = cls.__new__(cls)
+        loc.row, loc.col = t
+        return loc
+
+
+class Actions(Enum):
     SPACE_LEFT = 0
     SPACE_DOWN = 1
     SPACE_RIGHT = 2
@@ -24,80 +63,68 @@ class Actions:
 class NPuzzle:
     def __init__(self, n: int, init_state=[]):
         self.n = n + 1
-        side = int(math.sqrt(n + 1))
+        side = int(math.sqrt(self.n))
         self.side = side
-        self.field = self.generate_random_puzzle(n) if init_state == [] else init_state
-        if len(self.field) != self.n:
-            raise ValueError("Puzzle init_state is not of length N.")
-        self.space = self.field.index(0)
-        if self.space < 0:
-            raise ValueError("Puzzle does not contain an empty space (0 value)")
         self.directions = {
-            Actions.SPACE_LEFT: -1,
-            Actions.SPACE_DOWN: side,
-            Actions.SPACE_RIGHT: 1,
-            Actions.SPACE_UP: -side,
+            Actions.SPACE_LEFT: Coord(0, -1),
+            Actions.SPACE_DOWN: Coord(1, 0),
+            Actions.SPACE_RIGHT: Coord(0, 1),
+            Actions.SPACE_UP: Coord(-1, 0),
         }
-        self.reverse_dir = None
+        self._goal_state = np.array(
+            list(range(1, self.n)) + [0], dtype=np.int8
+        ).reshape((self.side, self.side))
+        self.reset(init_state)
 
     def __repr__(self):
-        return f"Puzzle({self.n - 1}, {self.field})"
+        return f"Puzzle({self.n - 1}, {list(self.field.reshape((1, self.n))[0])})"
 
     def __str__(self):
         out = ""
         for row in range(self.side):
-            out += f"{self.field[row * self.side] if self.field[row * self.side] > 0 else " "} "
-            out += f"{self.field[row * self.side + 1] if self.field[row * self.side + 1] > 0 else " "} "
-            out += f"{self.field[row * self.side + 2] if self.field[row * self.side + 2] > 0 else " "}\n"
+            out += " ".join(
+                str(self.field[row][col]) if self.field[row][col] > 0 else " "
+                for col in range(self.side)
+            )
+            out += "\n"
         return out
+
+    def reset(self, init_state=[]):
+        puzzle = self.generate_random_puzzle() if init_state == [] else init_state
+        self.field = np.array(puzzle, np.int8).reshape((self.side, self.side))
+        rows, cols = np.where(self.field == 0)
+        self.space = Coord(rows[0], cols[0])
 
     def move(self, action):
         direction = self.directions[action]
-        move_allowed = self.is_in_bounds(direction) and self.reverse_dir != direction
+        move_allowed = self.is_in_bounds(direction)
         if move_allowed:
-            self.reverse_dir = -direction
-            new_pos = self.space + direction
-            self.field[self.space], self.field[new_pos] = (
-                self.field[new_pos],
-                self.field[self.space],
-            )
-            self.space = new_pos
+            arr = self.field
+            srow, scol = self.space.as_tuple()
+            new_loc = self.space + direction
+            drow, dcol = new_loc.as_tuple()
+            arr[srow][scol], arr[drow][dcol] = arr[drow][dcol], arr[srow][scol]
+            self.space.row, self.space.col = drow, dcol
         return move_allowed
 
-    def is_in_bounds(self, direction):
-        pos = self.space + direction
-        pos_row = pos // self.side
-        space_row = self.space // self.side
-        return (
-            pos >= 0
-            and pos < len(self.field)
-            and (
-                (pos_row == space_row and abs(direction) == 1)
-                or (pos_row != space_row and abs(direction) == self.side)
-            )
-        )
+    def is_in_bounds(self, direction: Coord):
+        new_loc = self.space + direction
+        row, col = new_loc.as_tuple()
+        return 0 <= row < self.side and 0 <= col < self.side
 
     def is_goal_state(self):
-        return self.field == list(range(self.n))
+        return (self.field == self._goal_state).all()
 
-    def generate_random_puzzle(self, n: int = 8) -> List[int]:
-        puzzle = list(range(n + 1))
-        random.shuffle(puzzle)
-        return puzzle
+    def generate_random_puzzle(self) -> np.ndarray:
+        return list(range(1, self.n)) + [0]
 
-    @property
-    def State(self):
-        state = []
+    def render(self):
         for row in range(self.side):
-            items = []
-            for col in range(self.side):
-                items.append(self.field[row * self.side + col])
-            state.append(items)
-        return state
+            print(" ".join(self.field[row][col] for col in range(self.side)))
 
 
 class NPuzzleEnv(gym.Env):
-    metadata = {"render_modes": ["human", "terminal"], "render_fps": 4}
+    metadata = {"render_modes": ["human"], "render_fps": 1}
 
     def __init__(self, n=3, render_mode=None):
         self.n = n
@@ -173,6 +200,13 @@ class NPuzzleEnv(gym.Env):
         pygame.display.quit()
         pygame.quit()
 
+    def _sum_tile_distances(self):
+        return sum(
+            _manhattan_distance(
+                self.tile_loc(i) - self.goal_loc(i) for i in range(self.n)
+            )
+        )
+
     def _render_frame(self):
         if self.render_mode == "human":
             self.screen.fill(BLACK)
@@ -205,7 +239,7 @@ class NPuzzleEnv(gym.Env):
         return np.array(self.puzzle.State, dtype=np.int8)
 
     def _get_reward(self):
-        return 100 if self.done else -1
+        return 1000 if self.done else -1 * self._sum_tile_distances()
 
     def _get_font(self, path, size):
         project_dir = os.path.dirname(os.path.os.path.dirname(__file__))
