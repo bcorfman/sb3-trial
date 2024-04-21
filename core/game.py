@@ -1,5 +1,6 @@
 import math
 import os
+import random
 from dataclasses import dataclass
 from enum import Enum
 
@@ -48,9 +49,9 @@ class Coord:
 
     @classmethod
     def from_tuple(cls, t):
-        loc = cls.__new__(cls)
-        loc.row, loc.col = t
-        return loc
+        coord = cls.__new__(cls)
+        coord.row, coord.col = t
+        return coord
 
 
 class Actions(Enum):
@@ -77,7 +78,7 @@ class NPuzzle:
         self.reset(init_state)
 
     def __repr__(self):
-        return f"Puzzle({self.n - 1}, {list(self.field.reshape((1, self.n))[0])})"
+        return f"Puzzle({self.n - 1}, {list(self.field.flatten())})"
 
     def __str__(self):
         out = ""
@@ -90,10 +91,10 @@ class NPuzzle:
         return out
 
     def reset(self, init_state=[]):
-        puzzle = self.generate_random_puzzle() if init_state == [] else init_state
-        self.field = np.array(puzzle, np.int8).reshape((self.side, self.side))
-        rows, cols = np.where(self.field == 0)
-        self.space = Coord(rows[0], cols[0])
+        for state in self._starting_configurations(init_state):
+            self.field = np.array(state, dtype=np.int8).reshape((self.side, self.side))
+            rows, cols = np.where(self.field == 0)
+            self.space = Coord(rows[0], cols[0])
 
     def move(self, action):
         direction = self.directions[action]
@@ -115,8 +116,18 @@ class NPuzzle:
     def is_goal_state(self):
         return (self.field == self._goal_state).all()
 
-    def generate_random_puzzle(self) -> np.ndarray:
-        return list(range(1, self.n)) + [0]
+    def _starting_configurations(self, init_state=[]):
+        if init_state == []:
+            filename = os.path.join("res", str(self.n - 1) + "_init_nodes.txt")
+            with open(filename) as f:
+                while True:
+                    line = f.readline()
+                    if not line:
+                        break
+                    lst = [int(i) for i in line.strip().split(",")]
+                    yield lst
+        else:
+            yield init_state
 
     def render(self):
         for row in range(self.side):
@@ -144,7 +155,7 @@ class NPuzzleEnv(gym.Env):
         self.window_size = 512
         self.cell_size = self.window_size // n
         self.clock = None
-        self.reward = 0
+        self.tile_sum = 0
         self.tile_font = None
 
     def reset(self, **kwargs):
@@ -154,26 +165,31 @@ class NPuzzleEnv(gym.Env):
         return self._get_obs(), {}
 
     def step(self, action):
-        if self.render_mode == "human":
-            self._render_frame()
-        can_move = self.puzzle.move(action)
-        if not can_move:
-            self.done = False
-        else:
-            self.done = self.puzzle.is_goal_state()
-        self.reward = self._get_reward()
+        self.puzzle.move(action)
         observation = self._get_obs()
-        if self.render_mode == "terminal":
-            print(observation)
         return (
             observation,
-            self.reward,
-            self.done,
-            not can_move,
-            {"Step Reward": self.reward},
+            self._get_reward(),
+            self.puzzle.is_goal_state(),
+            False,
+            {},
         )
 
     def render(self):
+        pass
+
+    def close(self):
+        pygame.display.quit()
+        pygame.quit()
+
+    def _sum_tile_distances(self):
+        return sum(
+            _manhattan_distance(
+                self.tile_loc(i) - self.goal_loc(i) for i in range(self.n)
+            )
+        )
+
+    def _render_frame(self):
         if self.render_mode is None:
             assert self.spec is not None
             gym.logger.warn(
@@ -195,19 +211,7 @@ class NPuzzleEnv(gym.Env):
                 pygame.display.set_caption("Eight Puzzle")
             if self.render_mode == "terminal":
                 self._render_frame()
-
-    def close(self):
-        pygame.display.quit()
-        pygame.quit()
-
-    def _sum_tile_distances(self):
-        return sum(
-            _manhattan_distance(
-                self.tile_loc(i) - self.goal_loc(i) for i in range(self.n)
-            )
-        )
-
-    def _render_frame(self):
+        ###################
         if self.render_mode == "human":
             self.screen.fill(BLACK)
             for i in range(self.n):

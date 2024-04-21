@@ -12,6 +12,7 @@ dependencies = [
     "comet-ml>=3.40.0",
     "tqdm>=4.66.2",
     "rich>=13.7.1",
+    "setuptools==66.1.1",
 ]
 readme = "README.md"
 requires-python = ">= 3.9"

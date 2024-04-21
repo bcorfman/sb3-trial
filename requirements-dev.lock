@@ -168,8 +168,9 @@ semantic-version==2.10.0
     # via comet-ml
 sentry-sdk==1.45.0
     # via comet-ml
-setuptools==69.5.1
+setuptools==66.1.1
     # via comet-ml
+    # via sb3-trial
 simplejson==3.19.2
     # via comet-ml
 six==1.16.0
