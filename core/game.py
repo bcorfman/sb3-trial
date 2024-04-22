@@ -1,22 +1,11 @@
 import math
 import os
-import random
 from dataclasses import dataclass
 from enum import Enum
 
 import gymnasium as gym
 import numpy as np
-import pygame
 from gymnasium.spaces import Box, Discrete
-
-BLACK = (0, 0, 0)
-LIGHT_GRAY = (128, 128, 128)
-WHITE = (255, 255, 255)
-LINE_WIDTH = 3
-
-
-def _manhattan_distance(row1, col1, row2, col2):
-    return abs(row1 - row2) + abs(col1 - col2)
 
 
 @dataclass(eq=False)
@@ -54,7 +43,11 @@ class Coord:
         return coord
 
 
-class Actions(Enum):
+def _manhattan_distance(loc1: Coord, loc2: Coord):
+    return abs(loc1.row - loc2.row) + abs(loc1.col - loc2.col)
+
+
+class Moves(Enum):
     SPACE_LEFT = 0
     SPACE_DOWN = 1
     SPACE_RIGHT = 2
@@ -63,38 +56,50 @@ class Actions(Enum):
 
 class NPuzzle:
     def __init__(self, n: int, init_state=[]):
+        self.tile_width = len(str(n))
         self.n = n + 1
         side = int(math.sqrt(self.n))
         self.side = side
         self.directions = {
-            Actions.SPACE_LEFT: Coord(0, -1),
-            Actions.SPACE_DOWN: Coord(1, 0),
-            Actions.SPACE_RIGHT: Coord(0, 1),
-            Actions.SPACE_UP: Coord(-1, 0),
+            Moves.SPACE_LEFT.value: Coord(0, -1),
+            Moves.SPACE_DOWN.value: Coord(1, 0),
+            Moves.SPACE_RIGHT.value: Coord(0, 1),
+            Moves.SPACE_UP.value: Coord(-1, 0),
         }
         self._goal_state = np.array(
             list(range(1, self.n)) + [0], dtype=np.int8
         ).reshape((self.side, self.side))
+        self.project_dir = os.path.dirname(os.path.os.path.dirname(__file__))
         self.reset(init_state)
 
     def __repr__(self):
         return f"Puzzle({self.n - 1}, {list(self.field.flatten())})"
 
     def __str__(self):
-        out = ""
+        out = []
         for row in range(self.side):
-            out += " ".join(
-                str(self.field[row][col]) if self.field[row][col] > 0 else " "
-                for col in range(self.side)
-            )
-            out += "\n"
-        return out
+            lst = []
+            for col in range(self.side):
+                lst.append(
+                    f"{self.field[row][col]:>{self.tile_width}}"
+                    if self.field[row][col] > 0
+                    else " " * self.tile_width
+                )
+            out.append(" ".join(lst))
+        return "\n".join(out)
+
+    def tile_loc(self, tile_num):
+        rows, cols = np.where(self.field == tile_num)
+        return Coord(rows[0], cols[0])
+
+    def goal_loc(self, tile_num):
+        rows, cols = np.where(self._goal_state == tile_num)
+        return Coord(rows[0], cols[0])
 
     def reset(self, init_state=[]):
         for state in self._starting_configurations(init_state):
             self.field = np.array(state, dtype=np.int8).reshape((self.side, self.side))
-            rows, cols = np.where(self.field == 0)
-            self.space = Coord(rows[0], cols[0])
+            self.space = self.tile_loc(0)
 
     def move(self, action):
         direction = self.directions[action]
@@ -118,7 +123,9 @@ class NPuzzle:
 
     def _starting_configurations(self, init_state=[]):
         if init_state == []:
-            filename = os.path.join("res", str(self.n - 1) + "_init_nodes.txt")
+            filename = os.path.join(
+                self.project_dir, "res", str(self.n - 1) + "_init_nodes.txt"
+            )
             with open(filename) as f:
                 while True:
                     line = f.readline()
@@ -130,123 +137,92 @@ class NPuzzle:
             yield init_state
 
     def render(self):
-        for row in range(self.side):
-            print(" ".join(self.field[row][col] for col in range(self.side)))
+        print(str(self))
 
 
 class NPuzzleEnv(gym.Env):
     metadata = {"render_modes": ["human"], "render_fps": 1}
 
-    def __init__(self, n=3, render_mode=None):
+    def __init__(self, n=8, render_mode=None):
         self.n = n
-        assert render_mode is None or render_mode in self.metadata["render_modes"]
         self.render_mode = render_mode
         self.puzzle = NPuzzle(self.n)
-        self.action_space = Discrete(4)
+        self.action_space = Discrete(len(Moves))
         self.observation_space = Box(
             low=0,
             high=n,
             shape=(self.puzzle.side, self.puzzle.side),
             dtype=np.int8,
         )
-        self.done = False
-        self.tick_rate = 30
-        self.window = None
-        self.window_size = 512
-        self.cell_size = self.window_size // n
-        self.clock = None
-        self.tile_sum = 0
-        self.tile_font = None
+        self.last_reward = 0
 
-    def reset(self, **kwargs):
-        self.puzzle = NPuzzle(self.n)
-        self.done = self.puzzle.is_goal_state()
-        self.reward = self._get_reward()
-        return self._get_obs(), {}
+    # Gymnasium-required function (and parameters) to reset the environment.
+    def reset(self, seed=None, options=None):
+        super().reset(
+            seed=seed
+        )  # gym requires this call to control randomness and reproduce scenarios.
 
+        # Reset the N-Puzzle itself.
+        self.puzzle.reset()
+
+        # Construct the observation state.
+        obs = self._get_obs()
+
+        # Additional info to return, for debugging or other purposes.
+        info = {}
+
+        # Render environment
+        if self.render_mode == "human":
+            self.render()
+
+        return obs, info
+
+    # Gymnasium-required function (and parameters) to perform an action.
     def step(self, action):
-        self.puzzle.move(action)
+        self.puzzle.move(action)  # take a single action
+
+        # Determine reward and termination
+        reward = (
+            self._get_reward() - self.last_reward
+        )  # difference between this reward and last reward
+        terminated = self.puzzle.is_goal_state()
+        if terminated:
+            print("GOAL")
+
+        # Construct the observation state.
         observation = self._get_obs()
+
+        # Additional info to return, for debugging or other purposes.
+        info = {}
+
+        # Render the environment.
+        if self.render_mode == "human":
+            print(Moves(action))
+            self.render()
+
+        # return Gymnasium-required parameters. 4th param (truncated) is
+        # not used for this environment.
         return (
             observation,
-            self._get_reward(),
-            self.puzzle.is_goal_state(),
+            reward,
+            terminated,
             False,
-            {},
+            info,
         )
 
     def render(self):
-        pass
-
-    def close(self):
-        pygame.display.quit()
-        pygame.quit()
+        self.puzzle.render()
 
     def _sum_tile_distances(self):
         return sum(
-            _manhattan_distance(
-                self.tile_loc(i) - self.goal_loc(i) for i in range(self.n)
+            (
+                _manhattan_distance(self.puzzle.tile_loc(i), self.puzzle.goal_loc(i))
+                for i in range(self.n)
             )
         )
 
-    def _render_frame(self):
-        if self.render_mode is None:
-            assert self.spec is not None
-            gym.logger.warn(
-                "You are calling render method without specifying any render mode. "
-                "You can specify the render_mode at initialization, "
-                f'e.g. gym.make("{self.spec.id}", render_mode="terminal")'
-            )
-        else:
-            if self.window is None and self.render_mode == "human":
-                pygame.init()
-                pygame.display.init()
-                self.tile_font = self._get_font("freeansbold.ttf", self.window_size)
-                self.clock = pygame.time.Clock()
-                self.screen_width = self.screen_height = self.puzzle.side * 30
-                self.screen = pygame.display.set_mode(
-                    (self.window_size, self.window_size)
-                )
-                self.screen.fill((0, 0, 0))
-                pygame.display.set_caption("Eight Puzzle")
-            if self.render_mode == "terminal":
-                self._render_frame()
-        ###################
-        if self.render_mode == "human":
-            self.screen.fill(BLACK)
-            for i in range(self.n):
-                if self.board.State[i] > 0:
-                    pygame.draw.rect(
-                        self.screen,
-                        LIGHT_GRAY,
-                        (
-                            self.cell_size * i,
-                            self.cell_size * i,
-                            self.cell_size * (i + 1) - 1,
-                            self.cell_size * (i + 1) - 1,
-                        ),
-                    )
-                    tile_number = self.tile_font.render(str(i + 1), True, WHITE)
-                    self.screen.blit(
-                        tile_number,
-                        (
-                            self.cell_size * i + tile_number.width // 2,
-                            self.cell_size * i + tile_number.height // 2,
-                        ),
-                    )
-
-            pygame.event.pump()
-            pygame.display.update()
-            self.clock.tick(self.metadata["render_fps"])
-
     def _get_obs(self):
-        return np.array(self.puzzle.State, dtype=np.int8)
+        return self.puzzle.field
 
     def _get_reward(self):
-        return 1000 if self.done else -1 * self._sum_tile_distances()
-
-    def _get_font(self, path, size):
-        project_dir = os.path.dirname(os.path.os.path.dirname(__file__))
-        font_path = os.path.join(project_dir, "res", path)
-        font = pygame.font.Font(font_path, size)
-        return font
+        return 1000 if self.puzzle.is_goal_state() else -1 * self._sum_tile_distances()

@@ -11,3 +11,6 @@ wheels/
 
 # COMET
 .comet.config
+
+# storage
+models/

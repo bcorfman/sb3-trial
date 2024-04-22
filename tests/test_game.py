@@ -1,6 +1,9 @@
+import io
+import sys
+
 import numpy as np
 
-from core.game import Actions, NPuzzle
+from core.game import Moves, NPuzzle
 
 
 def test_create_puzzle_with_init_state():
@@ -9,23 +12,23 @@ def test_create_puzzle_with_init_state():
     assert puzzle.side == 3
     assert len(puzzle.field) == 3
     assert (puzzle.field == np.array(init_state).reshape((3, 3))).all()
-    assert puzzle.move(Actions.SPACE_LEFT) == False
-    allowed = puzzle.move(Actions.SPACE_RIGHT)
+    assert puzzle.move(Moves.SPACE_LEFT) == False
+    allowed = puzzle.move(Moves.SPACE_RIGHT)
     assert allowed
     assert (
         puzzle.field == np.array([1, 4, 6, 7, 5, 3, 2, 0, 8]).reshape((puzzle.side, -1))
     ).all()
-    allowed = puzzle.move(Actions.SPACE_UP)
+    allowed = puzzle.move(Moves.SPACE_UP)
     assert allowed
     assert (
         puzzle.field == np.array([1, 4, 6, 7, 0, 3, 2, 5, 8]).reshape((puzzle.side, -1))
     ).all()
-    allowed = puzzle.move(Actions.SPACE_LEFT)
+    allowed = puzzle.move(Moves.SPACE_LEFT)
     assert allowed
     assert (
         puzzle.field == np.array([1, 4, 6, 0, 7, 3, 2, 5, 8]).reshape((puzzle.side, -1))
     ).all()
-    allowed = puzzle.move(Actions.SPACE_DOWN)
+    allowed = puzzle.move(Moves.SPACE_DOWN)
     assert allowed
     assert (
         puzzle.field == np.array([1, 4, 6, 2, 7, 3, 0, 5, 8]).reshape((puzzle.side, -1))
@@ -33,21 +36,31 @@ def test_create_puzzle_with_init_state():
 
 
 def test_repr():
+    # repr(puzzle) returns a string with a
     puzzle = NPuzzle(8, [1, 4, 6, 7, 5, 3, 0, 2, 8])
     assert repr(puzzle) == "Puzzle(8, [1, 4, 6, 7, 5, 3, 0, 2, 8])"
 
 
 def test_str():
     puzzle = NPuzzle(8, [1, 4, 6, 7, 5, 3, 0, 2, 8])
-    assert str(puzzle) == "1 4 6\n7 5 3\n  2 8\n"
+    assert str(puzzle) == "1 4 6\n7 5 3\n  2 8"
+
+    puzzle = NPuzzle(15, [11, 13, 3, 7, 2, 10, 5, 6, 12, 0, 9, 1, 14, 8, 4, 15])
+    assert str(puzzle) == "11 13  3  7\n 2 10  5  6\n12     9  1\n14  8  4 15"
 
 
 def test_goal_state():
+    # 8-puzzle goal state is
+    # 1 2 3
+    # 4 5 6
+    # 7 8 0
     puzzle = NPuzzle(8, list(range(1, 9)) + [0])
     assert puzzle.is_goal_state()
 
 
 def test_starting_configurations():
+    # unspecified 8-puzzle starting states draw from valid,
+    # precalculated configurations inside a file.
     puzzle = NPuzzle(8)
     start_lst = [
         [3, 4, 8, 6, 2, 5, 0, 1, 7],
@@ -59,6 +72,8 @@ def test_starting_configurations():
         if i == 2:
             break
 
+    # unspecified 15-puzzle starting states draw from valid,
+    # precalculated configurations inside a file.
     puzzle = NPuzzle(15)
     start_lst = [
         [2, 5, 6, 1, 4, 8, 14, 12, 9, 10, 13, 11, 0, 3, 15, 7],
@@ -70,7 +85,18 @@ def test_starting_configurations():
         if i == 2:
             break
 
+    # Initial 8-puzzle configurations can also be passed in by the user.
     init_state = list(range(1, 9)) + [0]
     puzzle = NPuzzle(8, init_state)
     for lst in puzzle._starting_configurations(init_state):
         assert lst == init_state
+
+
+# Should print the current state of the puzzle correctly
+def test_print_current_state():
+    puzzle = NPuzzle(8, [1, 2, 3, 4, 5, 6, 7, 8, 0])
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
+    puzzle.render()
+    sys.stdout = sys.__stdout__
+    assert captured_output.getvalue() == "1 2 3\n4 5 6\n7 8  \n"
