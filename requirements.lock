@@ -136,6 +136,8 @@ rich==13.7.1
 rpds-py==0.18.0
     # via jsonschema
     # via referencing
+sb3-contrib==2.3.0
+    # via sb3-trial
 semantic-version==2.10.0
     # via comet-ml
 sentry-sdk==1.45.0
@@ -150,6 +152,7 @@ six==1.16.0
     # via configobj
     # via python-dateutil
 stable-baselines3==2.3.0
+    # via sb3-contrib
     # via sb3-trial
 sympy==1.12
     # via torch

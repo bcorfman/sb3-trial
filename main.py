@@ -14,6 +14,9 @@ from core.game import (
     NPuzzleEnv,
 )
 
+# For Tic-Tac-Toe, the state space would be (row, col, char[X or O], and number_of_moves_taken)
+# For N-Puzzle, the state space would be a stack of board_matrices (2D_square), and the dimension of the stack is the number of valid N-puzzle configurations.
+
 
 # Train or test using Q-Learning
 def run_q(episodes, is_training=True, render=False):
@@ -51,7 +54,7 @@ def run_q(episodes, is_training=True, render=False):
         if render:
             print(f"Episode {i}")
 
-        # Reset environment at teh beginning of episode
+        # Reset environment at the beginning of episode
         state = env.reset()[0]
         terminated = False
 
@@ -129,7 +132,7 @@ def train_sb3():
     # Use Advantage Actor Critic (A2C) algorithm.
     # Use MlpPolicy for observation space 1D vector.
     model = A2C("MlpPolicy", env, verbose=1)
-    model.learn(total_timesteps=10000)  # , progress_bar=True)
+    model.learn(total_timesteps=10000, progress_bar=True)
     filename = os.path.join(model_dir, "a2c_1000")
     model.save(filename)
 
@@ -157,8 +160,8 @@ def test_sb3(render=True):
 
 
 if __name__ == "__main__":
-    run_q(1000, is_training=True, render=False)
-    run_q(1, is_training=False, render=True)
+    # run_q(1000, is_training=True, render=False)
+    # run_q(1, is_training=False, render=True)
     # Train/test using StableBaseline3
-    # train_sb3()
-    # test_sb3()
+    train_sb3()
+    test_sb3()
