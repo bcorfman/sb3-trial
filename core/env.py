@@ -1,82 +1,98 @@
-import random
-
 import gymnasium as gym
 import numpy as np
 import pygame
 from gymnasium.spaces import Box, Discrete
-from sb3_contrib import MaskablePPO
-from sb3_contrib.common.envs import InvalidActionEnvDiscrete
-from sb3_contrib.common.maskable.evaluation import evaluate_policy
-from sb3_contrib.common.maskable.utils import get_action_masks
+
+from core.games import Moves, NPuzzle, TicTacToe
+from core.util import _manhattan_distance
 
 
-class TicTacToe:
-    def __init__(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.player = 1
+class NPuzzleEnv(gym.Env):
+    metadata = {"render_modes": ["human"], "render_fps": 1}
 
-    def reset(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.player = random.choice([-1, 1])  # Randomly choose the starting player
+    def __init__(self, n=8, render_mode=None):
+        self.n = n
+        self.render_mode = render_mode
+        self.puzzle = NPuzzle(self.n)
+        self.action_space = Discrete(len(Moves))
+        self.observation_space = Box(
+            low=0,
+            high=n,
+            shape=(self.puzzle.side, self.puzzle.side),
+            dtype=np.int8,
+        )
+        self.last_reward = 0
 
-    @property
-    def valid_moves(self):
-        moves = []
-        for row in range(3):
-            for col in range(3):
-                if self.board[row, col] == 0:
-                    moves.append(row * 3 + col)
-        return moves
+    def reset(self, seed=None, options=None):
+        """Gymnasium-required function (and parameters) to reset the environment."""
+        super().reset(
+            seed=seed
+        )  # gym requires this call to control randomness and reproduce scenarios.
 
-    def make_move(self, row, col):
-        if self.board[row, col] == 0:
-            self.board[row, col] = self.player
-            self.player = -self.player
-            return True
-        return False
+        # Reset the N-Puzzle itself.
+        self.puzzle.reset()
 
-    def check_winner(self):
-        for i in range(3):
-            if np.sum(self.board[i, :]) == 3 or np.sum(self.board[:, i]) == 3:
-                print("WIN")
-                return 1
-            if np.sum(self.board[i, :]) == -3 or np.sum(self.board[:, i]) == -3:
-                print("LOSS")
-                return -1
-        if (
-            np.sum(np.diag(self.board)) == 3
-            or np.sum(np.diag(np.fliplr(self.board))) == 3
-        ):
-            print("WIN")
-            return 1
-        if (
-            np.sum(np.diag(self.board)) == -3
-            or np.sum(np.diag(np.fliplr(self.board))) == -3
-        ):
-            print("LOSS")
-            return -1
-        if np.count_nonzero(self.board) == 9:
-            print("TIE")
-            return 0
-        return None
+        # Construct the observation state.
+        obs = self._get_obs()
 
-    def render(self, mode=None):
-        if mode == "ansi":
-            print(str(self))
+        # Additional info to return, for debugging or other purposes.
+        info = {}
 
-    def __str__(self):
-        output = "-------------\n"
-        for i in range(3):
-            output += "| "
-            for j in range(3):
-                if self.board[i, j] == 1:
-                    output += "X | "
-                elif self.board[i, j] == -1:
-                    output += "O | "
-                else:
-                    output += "  | "
-            output += "\n-------------\n"
-        return output
+        # Render environment
+        if self.render_mode == "human":
+            self.render()
+
+        return obs, info
+
+    def step(self, action):
+        """Gymnasium-required function (and parameters) to perform an action."""
+        self.puzzle.move(action)  # take a single action
+
+        # Determine reward and termination
+        reward = (
+            self._get_reward() - self.last_reward
+        )  # difference between this reward and last reward
+        terminated = self.puzzle.is_goal_state()
+        if terminated:
+            print("GOAL")
+
+        # Construct the observation state.
+        observation = self._get_obs()
+
+        # Additional info to return, for debugging or other purposes.
+        info = {}
+
+        # Render the environment.
+        if self.render_mode == "human":
+            print(Moves(action))
+            self.render()
+
+        # return Gymnasium-required parameters. 4th param (truncated) is
+        # not used for this environment.
+        return (
+            observation,
+            reward,
+            terminated,
+            False,
+            info,
+        )
+
+    def render(self):
+        self.puzzle.render()
+
+    def _sum_tile_distances(self):
+        return sum(
+            (
+                _manhattan_distance(self.puzzle.tile_loc(i), self.puzzle.goal_loc(i))
+                for i in range(self.n)
+            )
+        )
+
+    def _get_obs(self):
+        return self.puzzle.field
+
+    def _get_reward(self):
+        return 1000 if self.puzzle.is_goal_state() else -1 * self._sum_tile_distances()
 
 
 class TicTacToeEnv(gym.Env):
@@ -91,6 +107,9 @@ class TicTacToeEnv(gym.Env):
     def reset(self):
         self.game.reset()
         return self.game.board
+
+    def set_player(self, id):
+        self.game.player = id
 
     def step(self, action):
         row, col = action // 3, action % 3
@@ -159,22 +178,3 @@ class TicTacToeEnv(gym.Env):
     def close(self):
         if self.screen is not None:
             pygame.quit()
-
-
-if __name__ == "__main__":
-    env = InvalidActionEnvDiscrete(dim=4, n_invalid_actions=2)
-    model = MaskablePPO("MlpPolicy", env, gamma=0.4, seed=32, verbose=1)
-    model.learn(5000, progress_bar=True)
-
-    evaluate_policy(model, env, n_eval_episodes=20, reward_threshold=90, warn=False)
-
-    model.save("ppo_mask")
-    del model  # remove to demonstrate saving and loading
-
-    model = MaskablePPO.load("ppo_mask")
-    obs, _ = env.reset()
-    while True:
-        # Retrieve current action mask
-        action_masks = get_action_masks(env)
-        action, _states = model.predict(obs, action_masks=action_masks)
-        obs, reward, terminated, truncated, info = env.step(action)
