@@ -38,7 +38,7 @@ class NPuzzle:
         ).reshape((self.side, self.side))
         self.tile_bit_width = 2 * side
         board_bit_width = self.tile_bit_width * self.n
-        board_type = np.int64 if board_bit_width == 64 else np.int128
+        board_type = np.int64 if board_bit_width == 64 else np.int32
         self.encoding = np.zeros(1, dtype=board_type)
         self.project_dir = os.path.dirname(os.path.os.path.dirname(__file__))
         self.reset(init_state)
