@@ -200,6 +200,15 @@ class TicTacToe:
         self.board = np.zeros((3, 3), dtype=int)
         self.player = 1
 
+    def __hash__(self):
+        hash_val = 0
+        for row in range(3 - 1, -1, -1):
+            for col in range(3 - 1, -1, -1):
+                hash_val = hash_val << 5
+                idx = (row * 3 + col) + 1
+                hash_val += idx << 5 + self.board[row][col]
+        return hash_val
+
     def reset(self):
         self.board = np.zeros((3, 3), dtype=int)
         self.player = random.choice([-1, 1])  # Randomly choose the starting player

@@ -65,16 +65,15 @@ def test_sb3(render=True):
 
 
 if __name__ == "__main__":
-    # run_q(1000, is_training=True, render=False)
-    # run_q(1, is_training=False, render=True)
-    # Train/test using StableBaseline3
-    train_sb3()
-    test_sb3()
 
     def mask_fn(env: gym.Env) -> np.ndarray:
         # Uncomment to make masking a no-op
         # return np.ones_like(env.action_mask)
-        return env.valid_action_mask()
+        return env.valid_action_mask()  # run_q(1000, is_training=True, render=False)
+
+    # Train/test using StableBaseline3
+    # train_sb3()
+    # test_sb3()
 
     env = gym.make("TicTacToe-v1")
     env = ActionMasker(env, mask_fn)

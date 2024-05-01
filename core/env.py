@@ -99,14 +99,16 @@ class TicTacToeEnv(gym.Env):
     def __init__(self, frames_per_second=60):
         self.game = TicTacToe()
         self.action_space = Discrete(9)
-        self.observation_space = Box(low=-1, high=1, shape=(3, 3, 9), dtype=int)
+        self.observation_space = Box(low=-1, high=1, shape=(3, 3), dtype=int)
         self.screen = None
         self.frames_per_second = frames_per_second
         self.clock = pygame.time.Clock()
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
         self.game.reset()
-        return self.game.board
+        obs = self.game.board
+        info = {}
+        return obs, info
 
     def set_player(self, id):
         self.game.player = id
