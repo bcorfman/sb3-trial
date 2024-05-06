@@ -99,38 +99,34 @@ class TicTacToeEnv(gym.Env):
     def __init__(self, frames_per_second=60):
         self.game = TicTacToe()
         self.action_space = Discrete(9)
-        self.observation_space = Box(low=-1, high=1, shape=(3, 3), dtype=int)
+        self.observation_space = Discrete(len(self.game.valid_states))
         self.screen = None
         self.frames_per_second = frames_per_second
         self.clock = pygame.time.Clock()
 
     def reset(self, seed=None, options=None):
         self.game.reset()
-        obs = self.game.board
+        obs = self.get_obs()
         info = {}
         return obs, info
 
-    def set_player(self, id):
-        self.game.player = id
-
     def step(self, action):
-        row, col = action // 3, action % 3
-        valid_move = self.game.make_move(row, col)
+        self.game.make_move(action)
         winner = self.game.check_winner()
         reward = 0
         done = False
         if winner is not None:
-            if winner == self.game.player:
+            if winner == self.game.X:
                 reward = 1
-            elif winner == -self.game.player:
+            elif winner == self.game.O:
                 reward = -1
             done = True
-        elif not valid_move:
-            reward = -1
-            done = True
-        return self.game.board, reward, done, {}
+        return self.get_obs(), reward, done, {}
 
-    def action_masks(self):
+    def get_obs(self):
+        return self.game.valid_states[self.game.board]
+
+    def action_mask(self):
         return [i for i, valid in enumerate(self.game.valid_moves) if valid]
 
     def render(self, mode="human"):

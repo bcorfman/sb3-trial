@@ -1,6 +1,7 @@
 import math
 import os
 import random
+from collections import Counter
 from enum import Enum
 
 import numpy as np
@@ -121,16 +122,18 @@ class NPuzzle:
         :return: True if the puzzle is solvable, False otherwise
         """
         inversions = self._count_inversions(state)
-        blank_row = state.index(0)  # a blank is represented by a 0.
-        size = len(state)
+        blank_index = state.index(0)  # a blank is represented by a 0.
+        blank_row = self.side - blank_index // self.side
 
-        if size % 2 == 1:
+        if self.side % 2 == 1:
             # For odd-sized puzzles, the number of inversions should be even for the puzzle to be solvable.
             return inversions % 2 == 0
         else:
             # For even-sized puzzles, the number of inversions should be odd if the blank tile is on an even row (counting from the bottom),
             # and even if the blank tile is on an odd row.
-            return (blank_row % 2 == 0) == (inversions % 2 == 1)
+            return (blank_row % 2 == 0 and inversions % 2 == 1) or (
+                blank_row % 2 == 1 and inversions % 2 == 0
+            )
 
     def move(self, action):
         """
@@ -139,7 +142,7 @@ class NPuzzle:
         :param action: The move action to perform (e.g., Moves.SPACE_LEFT)
         :return: True if the move is allowed, False otherwise
         """
-        direction = self.directions[action]
+        direction = self.directions[action.value]
         move_allowed = self.is_in_bounds(direction)
         if move_allowed:
             arr = self.field
@@ -196,78 +199,107 @@ class NPuzzle:
 
 
 class TicTacToe:
+    EMPTY = 0
+    X = 1
+    O = 2
+
     def __init__(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.player = 1
+        """Initialize the board as a list of 9 elements (all zeros)
+        Randomly choose the first player (1 for X, 2 for O)"""
+        self.reset()
+        self.valid_states = self._map_valid_board_states()
 
     def __hash__(self):
-        hash_val = 0
-        for row in range(3 - 1, -1, -1):
-            for col in range(3 - 1, -1, -1):
-                hash_val = hash_val << 5
-                idx = (row * 3 + col) + 1
-                hash_val += idx << 5 + self.board[row][col]
-        return hash_val
-
-    def reset(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.player = random.choice([-1, 1])  # Randomly choose the starting player
-
-    @property
-    def valid_moves(self):
-        moves = []
-        for row in range(3):
-            for col in range(3):
-                if self.board[row, col] == 0:
-                    moves.append(row * 3 + col)
-        return moves
-
-    def make_move(self, row, col):
-        if self.board[row, col] == 0:
-            self.board[row, col] = self.player
-            self.player = -self.player
-            return True
-        return False
-
-    def check_winner(self):
-        for i in range(3):
-            if np.sum(self.board[i, :]) == 3 or np.sum(self.board[:, i]) == 3:
-                print("WIN")
-                return 1
-            if np.sum(self.board[i, :]) == -3 or np.sum(self.board[:, i]) == -3:
-                print("LOSS")
-                return -1
-        if (
-            np.sum(np.diag(self.board)) == 3
-            or np.sum(np.diag(np.fliplr(self.board))) == 3
-        ):
-            print("WIN")
-            return 1
-        if (
-            np.sum(np.diag(self.board)) == -3
-            or np.sum(np.diag(np.fliplr(self.board))) == -3
-        ):
-            print("LOSS")
-            return -1
-        if np.count_nonzero(self.board) == 9:
-            print("TIE")
-            return 0
-        return None
-
-    def render(self, mode=None):
-        if mode == "ansi":
-            print(str(self))
+        """Convert the board state to a binary representation and return it as an unsigned 16-bit integer"""
+        return self.valid_states[self.board]
 
     def __str__(self):
-        output = "-------------\n"
-        for i in range(3):
-            output += "| "
-            for j in range(3):
-                if self.board[i, j] == 1:
-                    output += "X | "
-                elif self.board[i, j] == -1:
-                    output += "O | "
-                else:
-                    output += "  | "
-            output += "\n-------------\n"
-        return output
+        """Return a string representation of the game board with gridlines"""
+        board_str = ""
+        for i in range(9):
+            if self.board[i] == self.EMPTY:
+                board_str += " "
+            elif self.board[i] == self.X:
+                board_str += "X"
+            else:
+                board_str += "O"
+
+            if i % 3 == 2:
+                board_str += "\n"
+            else:
+                board_str += "|"
+
+        return board_str
+
+    def reset(self):
+        """Reset the board to an empty state and randomly choose the first player"""
+        self.board = [self.EMPTY] * 9
+        self.player = self.X
+
+    def legal_moves(self, board=None):
+        """Return a list of integers representing valid moves based on the current state of the game"""
+        if board is None:
+            board = self.board
+
+        return [i for i in range(9) if board[i] == self.EMPTY]
+
+    def check_winner(self, player, board=None):
+        """Check for a winner or a draw.
+        Return 1 if the current player has won, -1 if the opponent has won, 0 for a draw,
+        and None if the game is still ongoing."""
+        if board is None:
+            board = self.board
+
+        winning_combinations = [
+            (0, 1, 2),
+            (3, 4, 5),
+            (6, 7, 8),  # rows
+            (0, 3, 6),
+            (1, 4, 7),
+            (2, 5, 8),  # columns
+            (0, 4, 8),
+            (2, 4, 6),  # diagonals
+        ]
+
+        for combo in winning_combinations:
+            if all(board[i] == player for i in combo):
+                return 1
+            elif all(board[i] == 3 - player for i in combo):
+                return -1
+
+        if board.count(self.EMPTY) == 0:
+            return 0
+
+        return None
+
+    def make_move(self, pos):
+        """Place an X or O on the board for the current player and then switch players.
+        Raise a ValueError if an invalid move is attempted."""
+        self.board[pos] = self.player
+        self.player = 3 - self.player
+
+    def _map_valid_board_states(self):
+        def legal_moves(board):
+            return [i for i in range(9) if board[i] == self.EMPTY]
+
+        def move(board, pos, player):
+            return board[0:pos] + tuple([player]) + board[pos + 1 :], 3 - player
+
+        board = tuple([self.EMPTY] * 9)
+        player = self.X
+        frontier = [(board, player)]
+        valid_states = set()
+        valid_states.add(board)
+        while frontier:
+            board, player = frontier.pop()
+            for pos in legal_moves(board):
+                new_board, new_player = move(board, pos, player)
+                if new_board not in valid_states:
+                    frontier.append((new_board, new_player))
+                    valid_states.add(new_board)
+        return {state: i for i, state in enumerate(sorted(valid_states))}
+
+    def render(self, mode=None):
+        """Called by the TicTacToeEnv class to render the game board."""
+        if mode == "ansi":
+            print(str(self))
